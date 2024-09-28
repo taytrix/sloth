@@ -1,7 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 import hashlib
-import hmac
 
 app = FastAPI()
 
@@ -19,9 +18,9 @@ async def root(request: Request):
 
     # Verify HMAC
     message = avatar_key + username + displayname + timestamp
-    expected_hmac = hmac.new(HUD_SECRET.encode(), message.encode(), hashlib.sha256).hexdigest()
+    expected_hmac = hashlib.sha256((message + HUD_SECRET).encode()).hexdigest()
     
-    hmac_verified = hmac.compare_digest(received_hmac, expected_hmac)
+    hmac_verified = received_hmac == expected_hmac
 
     html_content = f"""
     <html>

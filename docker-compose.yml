@@ -1,0 +1,22 @@
+ervices:
+  sloth:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sloth
+    restart: unless-stopped
+    environment:
+      - HUD_SECRET=${HUD_SECRET}
+    volumes:
+      - ./app:/app
+    networks:
+      - mainframe-public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sloth.rule=Host(`hud.auth.dix.lol`)"
+      - "traefik.http.routers.sloth.entrypoints=websecure"
+      - "traefik.http.services.sloth.loadbalancer.server.port=8000"
+
+networks:
+  mainframe-public:
+    external: true

@@ -1,0 +1,22 @@
+This fastapi project is called SLOTH .. Sloth is a combination of SL for Second Life and AUTH for authentication. 
+
+Here's what the project is about through some user stories:
+
+As a SL user, I want to be automatically authorized to use some apps on dix.lol websites
+As a SL user, I want to see my SL profile picture as my profile picture on dix.lol websites
+As a SL user, I want frictionless sign-up and login using my already existing SL credentials
+
+SL Media on prim is when a website is displayed on a face of a prim
+Any SL user can see the URL of the website on the face of a prim that has media enabled on a face
+A Media on prim may also be attached as a HUD by a user, and can only be seen by the SL user with the HUD attached
+A HUD object has permissions such as COPY, MODIFY, and TRANSER. A HUD with no copy, no modify, and no transfer is secure.
+A SL user that attaches a HUD with LSL can be navigated by the HUD to a URL and POST their SL credentials to the URL
+The website can TRUST the SL credentials because only the HUD knows a secret which allows it to POST
+Anyone registering with the HUD must be someone who had persmission to own the HUD object
+The FastAPI first checks if there are any cookies with the request which would indicate a returning user
+If it's a returning user then a new SL account is attached to an existing dix.lol account
+The FastAPI receives the POST with SL credentials: avatar_key, username, displayname
+The FastAPI checks the SQLite database to not make a duplicate account with the same SL avatar_key
+The FastAPI creates a new user with a new sl_account
+The FastAPI sets a cookie in the browser 
+The FastAPI displays a page saying success

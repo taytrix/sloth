@@ -1,0 +1,107 @@
+SLOTH (SL + AUTH) Request Flow with Routes
+
+1. Request from Second Life HUD
+
+Route: POST /register
+
+Step 1: Initiate HUD Request
+- User interacts with the HUD in Second Life
+- HUD prepares to send POST request with avatar_key, username, and displayname
+
+Step 2: Send POST Request
+- HUD sends POST request to SLOTH FastAPI endpoint: https://sloth.dix.lol/register
+- Request includes SL credentials and secret key for authentication
+
+Step 3: Receive and Validate Request
+- SLOTH FastAPI receives the POST request at /register
+- Validate the secret key to ensure request is from authorized HUD
+
+Step 4: Check Existing Accounts
+- Query SQLite database for existing accounts with the same avatar_key
+- Ensure no duplicate accounts are created
+
+Step 5: Create New User
+- If no existing account, create a new user in the database
+- Associate SL credentials (avatar_key, username, displayname) with the new account
+
+Step 6: Generate and Set Cookie
+- Create a secure, HTTP-Only, persistent cookie
+- Set cookie expiration (6 months or more)
+- Send cookie to user's browser
+
+Step 7: Return Success Response
+- Generate and send success page to HUD
+- Include any necessary information for user feedback
+
+2. Forward Authentication Request via Traefik
+
+Route: GET /_auth
+
+Step 1: Initial Resource Request
+- User attempts to access a resource (e.g., https://resource.dix.lol)
+- Request is intercepted by Traefik
+
+Step 2: Forward to SLOTH
+- Traefik forwards the authentication request to SLOTH
+- SLOTH receives the forwarded request at https://sloth.dix.lol/_auth
+
+Step 3: Check for Cookie
+- SLOTH looks for the authentication cookie in the request
+- Validate the cookie if present
+
+Step 4: Process Authentication
+- If valid cookie found:
+  - Verify user's credentials and permissions
+  - Prepare positive authentication response
+- If no valid cookie or authentication fails:
+  - Prepare negative authentication response
+
+Step 5: Return Authentication Result
+- Send authentication result back to Traefik
+- Include appropriate headers and status codes
+  - Success: 200 OK
+  - Failure: 401 Unauthorized or 403 Forbidden
+
+Step 6: Traefik Processes Result
+- If authentication successful (200 OK):
+  - Traefik allows the request to proceed to the requested resource
+- If authentication failed (401 or 403):
+  - Traefik blocks the request or redirects to login page
+
+Step 7: Serve Resource or Deny Access
+- If authenticated, serve the requested resource to the user
+- If not authenticated, show access denied message or redirect to login
+
+Additional Routes:
+
+3. User Login (for returning users)
+Route: GET /login
+- Checks for existing cookie
+- If valid cookie found, redirects to success page
+- If no valid cookie, displays login options (e.g., use SL HUD)
+
+4. User Logout
+Route: POST /logout
+- Invalidates the current session
+- Clears the authentication cookie
+- Redirects user to logout confirmation page
+
+5. Account Management
+Route: GET /account
+- Requires authentication
+- Displays user account information
+
+
+6. Health Check
+Route: GET /health
+- Returns the current status of the SLOTH service
+- Used for monitoring and load balancing
+
+Note: The SLOTH server continuously performs these authentication checks for all incoming requests forwarded by Traefik, ensuring that only authenticated users can access protected services across the dix.lol websites. All routes are handled by the FastAPI application running on https://sloth.dix.lol.
+
+What should the cookie consist of?
+
+Recommendation:
+Based on the requirements and simplicity needed, the best option seems to be a combination of a unique identifier and expiration date. The "Hash of user ID + secret key + expiration" (rated 10/10) or the "Encrypted session ID" (rated 9/10) would be excellent choices. These options provide security, include necessary information, and allow for verification without always needing a database lookup.
+
+The cookie doesn't need to contain more than a lookup value and expiration, as you mentioned. The actual user data can be stored in the SQLite database, with the cookie serving as a secure reference to that data.

@@ -4,12 +4,18 @@ import base64
 import json
 import logging
 from typing import Optional
+from pydantic import BaseModel, ValidationError
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 HUD_SECRET = "bozo"  # This should be stored securely in a real application
+
+class SLViewerBrowser(BaseModel):
+    avatar_key: str
+    username: str
+    displayname: str
 
 async def handle_auth(
     request: Request, 
@@ -33,18 +39,21 @@ async def handle_auth(
         parsed_data = parse_json_data(decrypted_data)
         # Set the cookie in the response
         cookie_value = json.dumps(parsed_data)
-        set_cookie(response, "SLViewerBrowser", cookie_value)
+        set_cookie(response, "sl_viewer_browser", cookie_value)
         logger.debug(f"Cookie set in response: {cookie_value}")
+        try:
+            sl_viewer_browser_model = SLViewerBrowser(**parsed_data)
+        except ValidationError as e:
+            logger.error(f"Failed to create SLViewerBrowser model: {e}")
+            raise HTTPException(status_code=400, detail="Invalid data format")
     else:
         try:
-            # The sl_viewer_browser is already a string, no need for json.loads
-            parsed_data = sl_viewer_browser
-            logger.debug("Using existing cookie data")
-        except json.JSONDecodeError:
-            logger.error(f"Failed to parse cookie value: {sl_viewer_browser}")
-            parsed_data = {}
+            sl_viewer_browser_model = SLViewerBrowser(**json.loads(sl_viewer_browser))
+        except (json.JSONDecodeError, ValidationError) as e:
+            logger.error(f"Failed to parse existing cookie: {e}")
+            raise HTTPException(status_code=400, detail="Invalid cookie format")
 
-    html_content = generate_html_response(parsed_data, request)
+    html_content = generate_html_response(sl_viewer_browser_model, request)
 
     logger.debug(f"Response headers: {response.headers}")
     set_cookie_header = response.headers.get('Set-Cookie')
@@ -105,7 +114,7 @@ def parse_json_data(decrypted_data: str) -> dict:
         raise HTTPException(status_code=400, detail=f"Invalid data format: {str(e)}")
 
 # We need to return HTML to SL for the HUD test
-def generate_html_response(data: dict, request: Request) -> str:
+def generate_html_response(data: SLViewerBrowser, request: Request) -> str:
     html_content = f"""
     <html>
         <head>
@@ -113,12 +122,12 @@ def generate_html_response(data: dict, request: Request) -> str:
         </head>
         <body>
             <h1>HUD Auth Test</h1>
-            <p>Avatar Key: {data['avatar_key']}</p>
-            <p>Username: {data['username']}</p>
-            <p>Display Name: {data['displayname']}</p>
+            <p>Avatar Key: {data.avatar_key}</p>
+            <p>Username: {data.username}</p>
+            <p>Display Name: {data.displayname}</p>
             <p>Data successfully decrypted and parsed</p>
             <h2>Full Cookie Information:</h2>
-            <pre>{request.cookies.get('SLViewerBrowser', 'Cookie not found')}</pre>
+            <pre>{request.cookies.get('sl_viewer_browser', 'Cookie not found')}</pre>
             <h2>All Request Headers:</h2>
             <pre>{json.dumps(dict(request.headers), indent=2)}</pre>
             <h2>All Request Cookies:</h2>

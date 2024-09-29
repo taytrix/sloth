@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.handlers import hud  
+from handlers import hud  # Changed to relative import
 
 app = FastAPI()
 
@@ -13,4 +13,4 @@ async def head():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

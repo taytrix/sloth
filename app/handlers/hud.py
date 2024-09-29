@@ -25,6 +25,8 @@ async def handle_auth(
     logger.info("Handling HUD auth request")
     logger.debug(f"Request headers: {request.headers}")
     logger.debug(f"Request cookies: {request.cookies}")
+    logger.debug(f"sl_viewer_browser type: {type(sl_viewer_browser)}")
+    logger.debug(f"sl_viewer_browser value: {sl_viewer_browser}")
 
     encrypted_data = request.query_params.get("encrypted_data", "")
     logger.debug(f"Received encrypted_data: {encrypted_data[:20]}...")  # Log first 20 chars for brevity
@@ -32,9 +34,8 @@ async def handle_auth(
     if not encrypted_data:
         raise HTTPException(status_code=400, detail="Missing encrypted_data parameter")
 
-    logger.debug(f"Cookie value from FastAPI: {sl_viewer_browser}")
-
     if sl_viewer_browser is None:
+        logger.debug("sl_viewer_browser is None, decrypting data")
         decrypted_data = decrypt_data(encrypted_data)
         parsed_data = parse_json_data(decrypted_data)
         # Set the cookie in the response
@@ -43,7 +44,7 @@ async def handle_auth(
         logger.debug(f"Cookie set in response: {cookie_value}")
         sl_viewer_browser = cookie_value  # Use the newly set cookie value
     else:
-        logger.debug("Using existing cookie data")
+        logger.debug(f"Using existing cookie data: {sl_viewer_browser}")
 
     html_content = generate_html_response(sl_viewer_browser, request)
 

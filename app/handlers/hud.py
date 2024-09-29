@@ -19,7 +19,7 @@ async def handle_auth(request: Request, response: Response) -> HTMLResponse:
 
     encrypted_data = request.query_params.get("encrypted_data", "")
     sl_viewer_browser = request.cookies.get("sl_viewer_browser")
-    logger.debug(f"sl_viewer_browser value: {sl_viewer_browser}")
+    logger.debug(f"sl_viewer_browser value from request: {sl_viewer_browser}")
 
     logger.debug(f"Received encrypted_data: {encrypted_data[:20]}...")  # Log first 20 chars for brevity
 
@@ -44,9 +44,9 @@ async def handle_auth(request: Request, response: Response) -> HTMLResponse:
 
     html_content = generate_html_response(parsed_data, request)
 
-    logger.debug(f"Response headers: {response.headers}")
+    logger.debug(f"Response headers before returning: {response.headers}")
     set_cookie_header = response.headers.get('Set-Cookie')
-    logger.debug(f"Set-Cookie header: {set_cookie_header}")
+    logger.debug(f"Set-Cookie header before returning: {set_cookie_header}")
     
     logger.info("Returning HTML response")
     return HTMLResponse(content=html_content, status_code=200)
@@ -57,14 +57,17 @@ def set_cookie(response: Response, cookie_name: str, cookie_value: str) -> None:
     response.set_cookie(
         key=cookie_name,
         value=cookie_value,
-        max_age=300,  # Expiry time in seconds (5 minutes)
-        httponly=True,  # Prevents JavaScript access
-        secure=True,  # Ensure cookie is only sent over HTTPS
-        samesite="None",  # Necessary for cross-site usage; must be paired with Secure=True
-        domain=".dix.lol",  # Use a leading dot to make the cookie available across subdomains
-        path="/"  # Make the cookie available across all paths on the domain
+        max_age=300,  # 5 minutes
+        httponly=True,
+        secure=True,
+        samesite="None",
+        domain=".dix.lol",  # To allow subdomains to share the cookie
+        path="/"  # Ensure it's available on all paths
     )
-    logger.debug(f"set_cookie: {cookie_name}={cookie_value}")
+    logger.debug(f"Setting cookie: {cookie_name} = {cookie_value}")
+    logger.debug(f"Cookie attributes - Domain: .dix.lol, Path: /, Secure: True, SameSite: None, HttpOnly: True, Max-Age: 300")
+    logger.debug(f"Response headers after setting cookie: {response.headers}")
+
 
 
 

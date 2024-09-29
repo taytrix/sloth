@@ -1,11 +1,11 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from handlers import hud  # Changed to relative import
 
 app = FastAPI()
 
 @app.get("/")
-async def root(encrypted_data: str = ""):
-    return await hud.handle_auth(encrypted_data)
+async def root(request: Request, response: Response):
+    return await hud.handle_auth(request, response)
 
 @app.head("/")
 async def head():

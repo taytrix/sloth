@@ -26,11 +26,10 @@ async def handle_auth(request: Request, response: Response) -> HTMLResponse:
         parsed_data = parse_json_data(decrypted_data)
         # Set the cookie in the response
         set_cookie(response, "SLViewerBrowser", json.dumps(parsed_data))
-        cookie_value = json.dumps(parsed_data)
     else:
         parsed_data = json.loads(cookie_value)
 
-    html_content = generate_html_response(parsed_data, cookie_value)
+    html_content = generate_html_response(parsed_data, request)
 
     logger.info("Returning HTML response")
     return HTMLResponse(content=html_content, status_code=200)
@@ -91,7 +90,10 @@ def parse_json_data(decrypted_data: str) -> dict:
         raise HTTPException(status_code=400, detail=f"Invalid data format: {str(e)}")
 
 # We need to return HTML to SL for the HUD test
-def generate_html_response(data: dict, cookie_value: str) -> str:
+def generate_html_response(data: dict, request: Request) -> str:
+    # Get the full cookie string
+    full_cookie = get_full_cookie_string(request, "SLViewerBrowser")
+
     html_content = f"""
     <html>
         <head>
@@ -103,11 +105,20 @@ def generate_html_response(data: dict, cookie_value: str) -> str:
             <p>Username: {data['username']}</p>
             <p>Display Name: {data['displayname']}</p>
             <p>Data successfully decrypted and parsed</p>
-            <p>Cookie Value: {cookie_value}</p>
+            <h2>Full Cookie Information:</h2>
+            <pre>{full_cookie}</pre>
         </body>
     </html>
     """
     return html_content
+
+def get_full_cookie_string(request: Request, cookie_name: str) -> str:
+    cookies = request.headers.get("Cookie", "")
+    cookie_parts = cookies.split("; ")
+    for part in cookie_parts:
+        if part.startswith(f"{cookie_name}="):
+            return part
+    return "Cookie not found"
 
 # This function takes two base64 encoded strings and XORs them
 def xor_base64(s1: str, s2: str) -> str:

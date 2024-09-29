@@ -14,7 +14,7 @@ HUD_SECRET = "bozo"  # This should be stored securely in a real application
 async def handle_auth(
     request: Request, 
     response: Response, 
-    sl_viewer_browser: Optional[str] = Cookie(None)
+    sl_viewer_browser: Optional[Cookie] = Cookie(None)
 ) -> HTMLResponse:
     logger.info("Handling HUD auth request")
     logger.debug(f"Request headers: {request.headers}")
@@ -28,7 +28,7 @@ async def handle_auth(
 
     logger.debug(f"Cookie value from FastAPI: {sl_viewer_browser}")
 
-    if not sl_viewer_browser:
+    if sl_viewer_browser is None:
         decrypted_data = decrypt_data(encrypted_data)
         parsed_data = parse_json_data(decrypted_data)
         # Set the cookie in the response
@@ -45,10 +45,10 @@ async def handle_auth(
         logger.debug(f"Cookie set in response: {cookie_value}")
     else:
         try:
-            parsed_data = json.loads(sl_viewer_browser)
+            parsed_data = json.loads(sl_viewer_browser.value)
             logger.debug("Using existing cookie data")
         except json.JSONDecodeError:
-            logger.error(f"Failed to parse cookie value: {sl_viewer_browser}")
+            logger.error(f"Failed to parse cookie value: {sl_viewer_browser.value}")
             parsed_data = {}
 
     html_content = generate_html_response(parsed_data, request)

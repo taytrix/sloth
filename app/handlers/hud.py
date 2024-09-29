@@ -34,20 +34,23 @@ async def handle_auth(
     if not encrypted_data:
         raise HTTPException(status_code=400, detail="Missing encrypted_data parameter")
 
-    # Check if the cookie is actually None or empty
     if sl_viewer_browser is None or sl_viewer_browser == "":
         logger.debug("sl_viewer_browser is None or empty, decrypting data")
         decrypted_data = decrypt_data(encrypted_data)
         parsed_data = parse_json_data(decrypted_data)
-        # Set the cookie in the response
-        cookie_value = json.dumps(parsed_data)
+        sl_viewer_browser_model = SLViewerBrowser(**parsed_data)
+        cookie_value = sl_viewer_browser_model.json()
         set_cookie(response, "sl_viewer_browser", cookie_value)
         logger.debug(f"Cookie set in response: {cookie_value}")
-        sl_viewer_browser = cookie_value  # Use the newly set cookie value
     else:
-        logger.debug(f"Using existing cookie data: {sl_viewer_browser}")
+        try:
+            sl_viewer_browser_model = SLViewerBrowser.parse_raw(sl_viewer_browser)
+            logger.debug(f"Using existing cookie data: {sl_viewer_browser_model}")
+        except ValidationError as e:
+            logger.error(f"Invalid cookie data: {e}")
+            raise HTTPException(status_code=400, detail="Invalid cookie data")
 
-    html_content = generate_html_response(sl_viewer_browser, request)
+    html_content = generate_html_response(sl_viewer_browser_model, request)
 
     logger.debug(f"Response headers: {response.headers}")
     set_cookie_header = response.headers.get('Set-Cookie')
@@ -108,7 +111,7 @@ def parse_json_data(decrypted_data: str) -> dict:
         raise HTTPException(status_code=400, detail=f"Invalid data format: {str(e)}")
 
 # We need to return HTML to SL for the HUD test
-def generate_html_response(sl_viewer_browser: Optional[str], request: Request) -> str:
+def generate_html_response(sl_viewer_browser: SLViewerBrowser, request: Request) -> str:
     html_content = f"""
     <html>
         <head>
@@ -117,7 +120,7 @@ def generate_html_response(sl_viewer_browser: Optional[str], request: Request) -
         <body>
             <h1>HUD Auth Test</h1>
             <h2>SL Viewer Browser Cookie:</h2>
-            <pre>{sl_viewer_browser if sl_viewer_browser else 'Cookie not found'}</pre>
+            <pre>{sl_viewer_browser.json(indent=2)}</pre>
             <h2>All Request Headers:</h2>
             <pre>{json.dumps(dict(request.headers), indent=2)}</pre>
             <h2>All Request Cookies:</h2>

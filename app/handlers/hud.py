@@ -37,7 +37,8 @@ async def handle_auth(
         logger.debug(f"Cookie set in response: {cookie_value}")
     else:
         try:
-            parsed_data = json.loads(sl_viewer_browser)
+            # The sl_viewer_browser is already a string, no need for json.loads
+            parsed_data = sl_viewer_browser
             logger.debug("Using existing cookie data")
         except json.JSONDecodeError:
             logger.error(f"Failed to parse cookie value: {sl_viewer_browser}")

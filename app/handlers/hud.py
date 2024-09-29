@@ -12,6 +12,7 @@ HUD_SECRET = "bozo"  # This should be stored securely in a real application
 
 async def handle_auth(request: Request, response: Response) -> HTMLResponse:
     logger.info("Handling HUD auth request")
+    logger.debug(f"Request headers: {request.headers}")
 
     encrypted_data = request.query_params.get("encrypted_data", "")
     logger.debug(f"Received encrypted_data: {encrypted_data[:20]}...")  # Log first 20 chars for brevity
@@ -35,6 +36,7 @@ async def handle_auth(request: Request, response: Response) -> HTMLResponse:
 
     html_content = generate_html_response(parsed_data, request)
 
+    logger.debug(f"Response headers: {response.headers}")
     logger.info("Returning HTML response")
     return HTMLResponse(content=html_content, status_code=200)
 
@@ -51,10 +53,12 @@ def set_cookie(response: Response, cookie_name: str, cookie_value: str):
         value=cookie_value,
         max_age=300,
         httponly=True,
-        secure=True,
-        samesite="Lax",
-        domain=".dix.lol"
+        # secure=True,  # Comment this out if not using HTTPS
+        samesite="None",  # Changed from "Lax"
+        domain="dix.lol"  # Removed leading dot
     )
+    logger.debug(f"set_cookie: {cookie_name}={cookie_value}")
+    logger.debug(f"Cookie header in response: {response.headers.get('Set-Cookie')}")
     logger.debug(f"set_cookie: {cookie_name}={cookie_value}")
 
 # SL is sending us XORed data so we need to decrypt it

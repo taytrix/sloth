@@ -14,7 +14,7 @@ HUD_SECRET = "bozo"  # This should be stored securely in a real application
 async def handle_auth(
     request: Request, 
     response: Response, 
-    sl_viewer_browser: Optional[Cookie] = Cookie(None)
+    sl_viewer_browser: Optional[str] = Cookie(default=None)
 ) -> HTMLResponse:
     logger.info("Handling HUD auth request")
     logger.debug(f"Request headers: {request.headers}")
@@ -33,22 +33,14 @@ async def handle_auth(
         parsed_data = parse_json_data(decrypted_data)
         # Set the cookie in the response
         cookie_value = json.dumps(parsed_data)
-        response.set_cookie(
-            key="SLViewerBrowser",
-            value=cookie_value,
-            max_age=300,
-            httponly=True,
-            secure=True,
-            samesite="None",
-            domain="hud.auth.dix.lol"
-        )
+        set_cookie(response, "SLViewerBrowser", cookie_value)
         logger.debug(f"Cookie set in response: {cookie_value}")
     else:
         try:
-            parsed_data = json.loads(sl_viewer_browser.value)
+            parsed_data = json.loads(sl_viewer_browser)
             logger.debug("Using existing cookie data")
         except json.JSONDecodeError:
-            logger.error(f"Failed to parse cookie value: {sl_viewer_browser.value}")
+            logger.error(f"Failed to parse cookie value: {sl_viewer_browser}")
             parsed_data = {}
 
     html_content = generate_html_response(parsed_data, request)
@@ -62,28 +54,17 @@ async def handle_auth(
 
 # HELPERS
 
-def read_cookie(request: Request, cookie_name: str) -> str:
-    cookie_value = request.cookies.get(cookie_name, "")
-    logger.debug(f"read_cookie: {cookie_name}={cookie_value}")
-    return cookie_value
-
-def set_cookie(response: Response, cookie_name: str, cookie_value: str) -> str:
-    cookie_params = {
-        'key': cookie_name,
-        'value': cookie_value,
-        'max_age': 300,
-        'httponly': True,
-        'secure': True,
-        'samesite': "None",
-        'domain': "hud.auth.dix.lol"
-    }
-    response.set_cookie(**cookie_params)
-    
-    full_cookie_string = f"{cookie_name}={cookie_value}; "
-    full_cookie_string += "; ".join([f"{k.capitalize()}={v}" for k, v in cookie_params.items() if k != 'key' and k != 'value'])
-    
-    logger.debug(f"set_cookie: {full_cookie_string}")
-    return full_cookie_string
+def set_cookie(response: Response, cookie_name: str, cookie_value: str) -> None:
+    response.set_cookie(
+        key=cookie_name,
+        value=cookie_value,
+        max_age=300,
+        httponly=True,
+        secure=True,
+        samesite="None",
+        domain="hud.auth.dix.lol"
+    )
+    logger.debug(f"set_cookie: {cookie_name}={cookie_value}")
 
 # SL is sending us XORed data so we need to decrypt it
 def decrypt_data(encrypted_data: str) -> str:

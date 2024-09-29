@@ -32,19 +32,24 @@ async def handle_auth(
         decrypted_data = decrypt_data(encrypted_data)
         parsed_data = parse_json_data(decrypted_data)
         # Set the cookie in the response
+        cookie_value = json.dumps(parsed_data)
         response.set_cookie(
             key="SLViewerBrowser",
-            value=json.dumps(parsed_data),
+            value=cookie_value,
             max_age=300,
             httponly=True,
             secure=True,
             samesite="None",
             domain="hud.auth.dix.lol"
         )
-        logger.debug(f"Cookie set in response: {json.dumps(parsed_data)}")
+        logger.debug(f"Cookie set in response: {cookie_value}")
     else:
-        parsed_data = json.loads(sl_viewer_browser)
-        logger.debug("Using existing cookie data")
+        try:
+            parsed_data = json.loads(sl_viewer_browser)
+            logger.debug("Using existing cookie data")
+        except json.JSONDecodeError:
+            logger.error(f"Failed to parse cookie value: {sl_viewer_browser}")
+            parsed_data = {}
 
     html_content = generate_html_response(parsed_data, request)
 

@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from .handlers import hud
+from app.handlers import hud  
 
 app = FastAPI()
 

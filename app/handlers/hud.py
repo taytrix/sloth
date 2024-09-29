@@ -13,6 +13,7 @@ HUD_SECRET = "bozo"  # This should be stored securely in a real application
 async def handle_auth(request: Request, response: Response) -> HTMLResponse:
     logger.info("Handling HUD auth request")
     logger.debug(f"Request headers: {request.headers}")
+    logger.debug(f"Request cookies: {request.cookies}")
 
     encrypted_data = request.query_params.get("encrypted_data", "")
     logger.debug(f"Received encrypted_data: {encrypted_data[:20]}...")  # Log first 20 chars for brevity
@@ -37,6 +38,7 @@ async def handle_auth(request: Request, response: Response) -> HTMLResponse:
     html_content = generate_html_response(parsed_data, request)
 
     logger.debug(f"Response headers: {response.headers}")
+    logger.debug(f"Response cookies: {response.cookies}")
     logger.info("Returning HTML response")
     return HTMLResponse(content=html_content, status_code=200)
 
@@ -53,13 +55,12 @@ def set_cookie(response: Response, cookie_name: str, cookie_value: str):
         value=cookie_value,
         max_age=300,
         httponly=True,
-        # secure=True,  # Comment this out if not using HTTPS
-        samesite="None",  # Changed from "Lax"
-        domain="dix.lol"  # Removed leading dot
+        secure=True,  # Re-enabled as we're using HTTPS
+        samesite="None",
+        domain="hud.auth.dix.lol"  # Use the exact domain
     )
     logger.debug(f"set_cookie: {cookie_name}={cookie_value}")
     logger.debug(f"Cookie header in response: {response.headers.get('Set-Cookie')}")
-    logger.debug(f"set_cookie: {cookie_name}={cookie_value}")
 
 # SL is sending us XORed data so we need to decrypt it
 def decrypt_data(encrypted_data: str) -> str:
@@ -116,6 +117,10 @@ def generate_html_response(data: dict, request: Request) -> str:
             <p>Data successfully decrypted and parsed</p>
             <h2>Full Cookie Information:</h2>
             <pre>{full_cookie}</pre>
+            <h2>All Request Headers:</h2>
+            <pre>{json.dumps(dict(request.headers), indent=2)}</pre>
+            <h2>All Request Cookies:</h2>
+            <pre>{json.dumps(dict(request.cookies), indent=2)}</pre>
         </body>
     </html>
     """

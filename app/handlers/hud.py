@@ -34,8 +34,9 @@ async def handle_auth(
     if not encrypted_data:
         raise HTTPException(status_code=400, detail="Missing encrypted_data parameter")
 
-    if sl_viewer_browser is None:
-        logger.debug("sl_viewer_browser is None, decrypting data")
+    # Check if the cookie is actually None or empty
+    if sl_viewer_browser is None or sl_viewer_browser == "":
+        logger.debug("sl_viewer_browser is None or empty, decrypting data")
         decrypted_data = decrypt_data(encrypted_data)
         parsed_data = parse_json_data(decrypted_data)
         # Set the cookie in the response

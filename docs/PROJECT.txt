@@ -1,22 +1,47 @@
-This fastapi project is called SLOTH .. Sloth is a combination of SL for Second Life and AUTH for authentication. 
+# Project Overview
 
-Here's what the project is about through some user stories:
+## Project Name: SLOTH (SL + AUTH)
 
-As a SL user, I want to be automatically authorized to use some apps on dix.lol websites
-As a SL user, I want to see my SL profile picture as my profile picture on dix.lol websites
-As a SL user, I want frictionless sign-up and login using my already existing SL credentials
+### Description:
+SLOTH is a FastAPI project designed to authenticate Second Life (SL) users for various applications on dix.lol websites. It provides a seamless sign-up and login experience using existing SL credentials and ensures secure authentication through a HUD (Heads-Up Display) in SL.
 
-SL Media on prim is when a website is displayed on a face of a prim
-Any SL user can see the URL of the website on the face of a prim that has media enabled on a face
-A Media on prim may also be attached as a HUD by a user, and can only be seen by the SL user with the HUD attached
-A HUD object has permissions such as COPY, MODIFY, and TRANSER. A HUD with no copy, no modify, and no transfer is secure.
-A SL user that attaches a HUD with LSL can be navigated by the HUD to a URL and POST their SL credentials to the URL
-The website can TRUST the SL credentials because only the HUD knows a secret which allows it to POST
-Anyone registering with the HUD must be someone who had persmission to own the HUD object
-The FastAPI first checks if there are any cookies with the request which would indicate a returning user
-If it's a returning user then a new SL account is attached to an existing dix.lol account
-The FastAPI receives the POST with SL credentials: avatar_key, username, displayname
-The FastAPI checks the SQLite database to not make a duplicate account with the same SL avatar_key
-The FastAPI creates a new user with a new sl_account
-The FastAPI sets a cookie in the browser 
-The FastAPI displays a page saying success
+### Key Features:
+1. **Automatic Authorization**: SL users are automatically authorized to use apps on dix.lol websites.
+2. **Profile Picture Integration**: SL users' profile pictures are used as their profile pictures on dix.lol websites.
+3. **Frictionless Sign-Up/Login**: SL users can sign up and log in using their existing SL credentials.
+
+### Media on Prim:
+- Websites can be displayed on a prim's face in SL.
+- Any SL user can see the URL on the prim's face with media enabled.
+- Media on prim can be attached as a HUD, visible only to the user with the HUD.
+
+### HUD Permissions:
+- HUD objects have permissions like COPY, MODIFY, and TRANSFER.
+- A secure HUD has no copy, no modify, and no transfer permissions.
+
+### Secure Authentication:
+- SL users can navigate to a URL and POST their SL credentials via the HUD.
+- The website trusts the SL credentials because the HUD knows a secret for POSTing.
+- Only users with permission to own the HUD can register.
+
+### Cookie-Based Authentication:
+- FastAPI checks for cookies to identify returning users.
+- Cookies are HTTP-Only, persistent (6 months or more), and secure (transmitted over HTTPS).
+- Returning users can attach a new SL account to an existing dix.lol account.
+
+### Account Management:
+- FastAPI receives POST requests with SL credentials: avatar_key, username, displayname.
+- It checks the SQLite database to avoid duplicate accounts with the same SL avatar_key.
+- Creates a new user with a new SL account.
+- Sets a secure, HTTP-Only, persistent cookie in the browser.
+- Displays a success page.
+
+### Traefik Forward Auth:
+- SLOTH integrates with Traefik to provide forward authentication.
+- Traefik forwards authentication requests to SLOTH.
+- SLOTH verifies the user's credentials and returns the appropriate response.
+- Ensures that only authenticated users can access protected services.
+- Simplifies the authentication process for multiple services behind Traefik.
+
+### Summary:
+SLOTH is a FastAPI project that serves as a registration and authentication point within a Traefik network, performing forward authentication for various websites. It continuously checks for cookies to allow users access to services. Registration is exclusively done through a HUD in Second Life, ensuring secure and seamless authentication for SL users. The SLOTH server has two main functions: managing registration and setting cookies, and checking cookies for forward authentication on Traefik.

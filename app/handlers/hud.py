@@ -1,4 +1,4 @@
-from fastapi import HTTPException
+from fastapi import HTTPException, Request, Response
 from fastapi.responses import HTMLResponse
 import base64
 import json
@@ -10,21 +10,48 @@ logger = logging.getLogger(__name__)
 
 HUD_SECRET = "bozo"  # This should be stored securely in a real application
 
-async def handle_auth(encrypted_data: str) -> HTMLResponse:
+async def handle_auth(request: Request, response: Response) -> HTMLResponse:
     logger.info("Handling HUD auth request")
+
+    encrypted_data = request.query_params.get("encrypted_data", "")
     logger.debug(f"Received encrypted_data: {encrypted_data[:20]}...")  # Log first 20 chars for brevity
 
     if not encrypted_data:
         raise HTTPException(status_code=400, detail="Missing encrypted_data parameter")
 
-    decrypted_data = decrypt_data(encrypted_data)
-    parsed_data = parse_json_data(decrypted_data)
-    html_content = generate_html_response(parsed_data)
+    # Read the cookie from the request
+    cookie_value = read_cookie(request, "SLViewerBrowser")
+    if not cookie_value:
+        decrypted_data = decrypt_data(encrypted_data)
+        parsed_data = parse_json_data(decrypted_data)
+        # Set the cookie in the response
+        set_cookie(response, "SLViewerBrowser", json.dumps(parsed_data))
+        cookie_value = json.dumps(parsed_data)
+    else:
+        parsed_data = json.loads(cookie_value)
+
+    html_content = generate_html_response(parsed_data, cookie_value)
 
     logger.info("Returning HTML response")
     return HTMLResponse(content=html_content, status_code=200)
 
 # HELPERS
+
+def read_cookie(request: Request, cookie_name: str) -> str:
+    # Access the cookie from the request
+    return request.cookies.get(cookie_name, "")
+
+def set_cookie(response: Response, cookie_name: str, cookie_value: str):
+    # Set the cookie in the response
+    response.set_cookie(
+        key=cookie_name,
+        value=cookie_value,
+        max_age=300,  #6 * 30 * 24 * 60 * 60,  # 6 months
+        httponly=True,
+        secure=True,
+        samesite="Lax",
+        domain=".dix.lol"
+    )
 
 # SL is sending us XORed data so we need to decrypt it
 def decrypt_data(encrypted_data: str) -> str:
@@ -64,7 +91,7 @@ def parse_json_data(decrypted_data: str) -> dict:
         raise HTTPException(status_code=400, detail=f"Invalid data format: {str(e)}")
 
 # We need to return HTML to SL for the HUD test
-def generate_html_response(data: dict) -> str:
+def generate_html_response(data: dict, cookie_value: str) -> str:
     html_content = f"""
     <html>
         <head>
@@ -76,6 +103,7 @@ def generate_html_response(data: dict) -> str:
             <p>Username: {data['username']}</p>
             <p>Display Name: {data['displayname']}</p>
             <p>Data successfully decrypted and parsed</p>
+            <p>Cookie Value: {cookie_value}</p>
         </body>
     </html>
     """

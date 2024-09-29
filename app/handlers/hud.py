@@ -1,8 +1,9 @@
-from fastapi import HTTPException, Request, Response
+from fastapi import HTTPException, Request, Response, Cookie
 from fastapi.responses import HTMLResponse
 import base64
 import json
 import logging
+from typing import Optional
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -10,7 +11,11 @@ logger = logging.getLogger(__name__)
 
 HUD_SECRET = "bozo"  # This should be stored securely in a real application
 
-async def handle_auth(request: Request, response: Response) -> HTMLResponse:
+async def handle_auth(
+    request: Request, 
+    response: Response, 
+    sl_viewer_browser: Optional[str] = Cookie(None)
+) -> HTMLResponse:
     logger.info("Handling HUD auth request")
     logger.debug(f"Request headers: {request.headers}")
     logger.debug(f"Request cookies: {request.cookies}")
@@ -21,24 +26,32 @@ async def handle_auth(request: Request, response: Response) -> HTMLResponse:
     if not encrypted_data:
         raise HTTPException(status_code=400, detail="Missing encrypted_data parameter")
 
-    # Read the cookie from the request
-    cookie_value = read_cookie(request, "SLViewerBrowser")
-    logger.debug(f"Cookie value after read_cookie: {cookie_value}")
+    logger.debug(f"Cookie value from FastAPI: {sl_viewer_browser}")
 
-    if not cookie_value:
+    if not sl_viewer_browser:
         decrypted_data = decrypt_data(encrypted_data)
         parsed_data = parse_json_data(decrypted_data)
         # Set the cookie in the response
-        set_cookie(response, "SLViewerBrowser", json.dumps(parsed_data))
-        logger.debug("Cookie set in response")
+        response.set_cookie(
+            key="SLViewerBrowser",
+            value=json.dumps(parsed_data),
+            max_age=300,
+            httponly=True,
+            secure=True,
+            samesite="None",
+            domain="hud.auth.dix.lol"
+        )
+        logger.debug(f"Cookie set in response: {json.dumps(parsed_data)}")
     else:
-        parsed_data = json.loads(cookie_value)
+        parsed_data = json.loads(sl_viewer_browser)
         logger.debug("Using existing cookie data")
 
     html_content = generate_html_response(parsed_data, request)
 
     logger.debug(f"Response headers: {response.headers}")
-    logger.debug(f"Response cookies: {response.cookies}")
+    set_cookie_header = response.headers.get('Set-Cookie')
+    logger.debug(f"Set-Cookie header: {set_cookie_header}")
+    
     logger.info("Returning HTML response")
     return HTMLResponse(content=html_content, status_code=200)
 
@@ -49,18 +62,23 @@ def read_cookie(request: Request, cookie_name: str) -> str:
     logger.debug(f"read_cookie: {cookie_name}={cookie_value}")
     return cookie_value
 
-def set_cookie(response: Response, cookie_name: str, cookie_value: str):
-    response.set_cookie(
-        key=cookie_name,
-        value=cookie_value,
-        max_age=300,
-        httponly=True,
-        secure=True,  # Re-enabled as we're using HTTPS
-        samesite="None",
-        domain="hud.auth.dix.lol"  # Use the exact domain
-    )
-    logger.debug(f"set_cookie: {cookie_name}={cookie_value}")
-    logger.debug(f"Cookie header in response: {response.headers.get('Set-Cookie')}")
+def set_cookie(response: Response, cookie_name: str, cookie_value: str) -> str:
+    cookie_params = {
+        'key': cookie_name,
+        'value': cookie_value,
+        'max_age': 300,
+        'httponly': True,
+        'secure': True,
+        'samesite': "None",
+        'domain': "hud.auth.dix.lol"
+    }
+    response.set_cookie(**cookie_params)
+    
+    full_cookie_string = f"{cookie_name}={cookie_value}; "
+    full_cookie_string += "; ".join([f"{k.capitalize()}={v}" for k, v in cookie_params.items() if k != 'key' and k != 'value'])
+    
+    logger.debug(f"set_cookie: {full_cookie_string}")
+    return full_cookie_string
 
 # SL is sending us XORed data so we need to decrypt it
 def decrypt_data(encrypted_data: str) -> str:
@@ -101,9 +119,6 @@ def parse_json_data(decrypted_data: str) -> dict:
 
 # We need to return HTML to SL for the HUD test
 def generate_html_response(data: dict, request: Request) -> str:
-    # Get the full cookie string
-    full_cookie = get_full_cookie_string(request, "SLViewerBrowser")
-
     html_content = f"""
     <html>
         <head>
@@ -116,7 +131,7 @@ def generate_html_response(data: dict, request: Request) -> str:
             <p>Display Name: {data['displayname']}</p>
             <p>Data successfully decrypted and parsed</p>
             <h2>Full Cookie Information:</h2>
-            <pre>{full_cookie}</pre>
+            <pre>{request.cookies.get('SLViewerBrowser', 'Cookie not found')}</pre>
             <h2>All Request Headers:</h2>
             <pre>{json.dumps(dict(request.headers), indent=2)}</pre>
             <h2>All Request Cookies:</h2>
@@ -125,15 +140,6 @@ def generate_html_response(data: dict, request: Request) -> str:
     </html>
     """
     return html_content
-
-def get_full_cookie_string(request: Request, cookie_name: str) -> str:
-    all_cookies = request.headers.get("Cookie", "")
-    logger.debug(f"All cookies: {all_cookies}")
-    cookies = all_cookies.split("; ")
-    for cookie in cookies:
-        if cookie.startswith(f"{cookie_name}="):
-            return cookie
-    return "Cookie not found"
 
 # This function takes two base64 encoded strings and XORs them
 def xor_base64(s1: str, s2: str) -> str:

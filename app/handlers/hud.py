@@ -12,7 +12,7 @@ HUD_SECRET = "bozo"  # This should be stored securely in a real application
 
 # MAIN HANDLER
 
-async def handle_auth(request: Request, response: Response) -> HTMLResponse:
+async def handle_auth(request: Request, response: Response) -> Response:
     logger.info("Handling HUD auth request")
     logger.debug(f"Request headers: {request.headers}")
     logger.debug(f"Request cookies: {request.cookies}")
@@ -44,12 +44,17 @@ async def handle_auth(request: Request, response: Response) -> HTMLResponse:
 
     html_content = generate_html_response(parsed_data, request)
 
+    # Set the content and headers on the existing response object
+    response.body = html_content.encode()
+    response.status_code = 200
+    response.media_type = "text/html"
+
     logger.debug(f"Response headers before returning: {response.headers}")
     set_cookie_header = response.headers.get('Set-Cookie')
     logger.debug(f"Set-Cookie header before returning: {set_cookie_header}")
     
     logger.info("Returning HTML response")
-    return HTMLResponse(content=html_content, status_code=200)
+    return response
 
 # HELPERS
 

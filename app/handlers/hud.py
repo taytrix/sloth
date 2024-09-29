@@ -1,10 +1,8 @@
-from fastapi import HTTPException, Request, Response, Cookie
+from fastapi import HTTPException, Request, Response
 from fastapi.responses import HTMLResponse
 import base64
 import json
 import logging
-from typing import Optional
-from pydantic import BaseModel, ValidationError
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -12,23 +10,17 @@ logger = logging.getLogger(__name__)
 
 HUD_SECRET = "bozo"  # This should be stored securely in a real application
 
-class SLViewerBrowser(BaseModel):
-    avatar_key: str
-    username: str
-    displayname: str
+# MAIN HANDLER
 
-async def handle_auth(
-    request: Request, 
-    response: Response, 
-    sl_viewer_browser: Optional[str] = Cookie(default=None)
-) -> HTMLResponse:
+async def handle_auth(request: Request, response: Response) -> HTMLResponse:
     logger.info("Handling HUD auth request")
     logger.debug(f"Request headers: {request.headers}")
     logger.debug(f"Request cookies: {request.cookies}")
-    logger.debug(f"sl_viewer_browser type: {type(sl_viewer_browser)}")
-    logger.debug(f"sl_viewer_browser value: {sl_viewer_browser}")
 
     encrypted_data = request.query_params.get("encrypted_data", "")
+    sl_viewer_browser = request.cookies.get("sl_viewer_browser")
+    logger.debug(f"sl_viewer_browser value: {sl_viewer_browser}")
+
     logger.debug(f"Received encrypted_data: {encrypted_data[:20]}...")  # Log first 20 chars for brevity
 
     if not encrypted_data:
@@ -38,19 +30,19 @@ async def handle_auth(
         logger.debug("sl_viewer_browser is None or empty, decrypting data")
         decrypted_data = decrypt_data(encrypted_data)
         parsed_data = parse_json_data(decrypted_data)
-        sl_viewer_browser_model = SLViewerBrowser(**parsed_data)
-        cookie_value = sl_viewer_browser_model.json()
+        
+        cookie_value = json.dumps(parsed_data)
         set_cookie(response, "sl_viewer_browser", cookie_value)
         logger.debug(f"Cookie set in response: {cookie_value}")
     else:
         try:
-            sl_viewer_browser_model = SLViewerBrowser.parse_raw(sl_viewer_browser)
-            logger.debug(f"Using existing cookie data: {sl_viewer_browser_model}")
-        except ValidationError as e:
+            parsed_data = json.loads(sl_viewer_browser)
+            logger.debug(f"Using existing cookie data: {parsed_data}")
+        except json.JSONDecodeError as e:
             logger.error(f"Invalid cookie data: {e}")
             raise HTTPException(status_code=400, detail="Invalid cookie data")
 
-    html_content = generate_html_response(sl_viewer_browser_model, request)
+    html_content = generate_html_response(parsed_data, request)
 
     logger.debug(f"Response headers: {response.headers}")
     set_cookie_header = response.headers.get('Set-Cookie')
@@ -111,7 +103,7 @@ def parse_json_data(decrypted_data: str) -> dict:
         raise HTTPException(status_code=400, detail=f"Invalid data format: {str(e)}")
 
 # We need to return HTML to SL for the HUD test
-def generate_html_response(sl_viewer_browser: SLViewerBrowser, request: Request) -> str:
+def generate_html_response(parsed_data: dict, request: Request) -> str:
     html_content = f"""
     <html>
         <head>
@@ -120,7 +112,7 @@ def generate_html_response(sl_viewer_browser: SLViewerBrowser, request: Request)
         <body>
             <h1>HUD Auth Test</h1>
             <h2>SL Viewer Browser Cookie:</h2>
-            <pre>{sl_viewer_browser.json(indent=2)}</pre>
+            <pre>{json.dumps(parsed_data, indent=2)}</pre>
             <h2>All Request Headers:</h2>
             <pre>{json.dumps(dict(request.headers), indent=2)}</pre>
             <h2>All Request Cookies:</h2>

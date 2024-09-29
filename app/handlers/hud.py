@@ -61,7 +61,7 @@ def set_cookie(response: Response, cookie_name: str, cookie_value: str) -> None:
         httponly=True,
         secure=True,
         samesite="None",
-        domain=".dix.lol",  # To allow subdomains to share the cookie
+        #domain=".dix.lol",  # To allow subdomains to share the cookie
         path="/"  # Ensure it's available on all paths
     )
     logger.debug(f"Setting cookie: {cookie_name} = {cookie_value}")

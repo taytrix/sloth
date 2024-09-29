@@ -41,6 +41,7 @@ async def handle_auth(
         cookie_value = json.dumps(parsed_data)
         set_cookie(response, "sl_viewer_browser", cookie_value)
         logger.debug(f"Cookie set in response: {cookie_value}")
+        sl_viewer_browser = cookie_value  # Use the newly set cookie value
     else:
         logger.debug("Using existing cookie data")
 

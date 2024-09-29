@@ -41,19 +41,10 @@ async def handle_auth(
         cookie_value = json.dumps(parsed_data)
         set_cookie(response, "sl_viewer_browser", cookie_value)
         logger.debug(f"Cookie set in response: {cookie_value}")
-        try:
-            sl_viewer_browser_model = SLViewerBrowser(**parsed_data)
-        except ValidationError as e:
-            logger.error(f"Failed to create SLViewerBrowser model: {e}")
-            raise HTTPException(status_code=400, detail="Invalid data format")
     else:
-        try:
-            sl_viewer_browser_model = SLViewerBrowser(**json.loads(sl_viewer_browser))
-        except (json.JSONDecodeError, ValidationError) as e:
-            logger.error(f"Failed to parse existing cookie: {e}")
-            raise HTTPException(status_code=400, detail="Invalid cookie format")
+        logger.debug("Using existing cookie data")
 
-    html_content = generate_html_response(sl_viewer_browser_model, request)
+    html_content = generate_html_response(sl_viewer_browser, request)
 
     logger.debug(f"Response headers: {response.headers}")
     set_cookie_header = response.headers.get('Set-Cookie')
@@ -114,7 +105,7 @@ def parse_json_data(decrypted_data: str) -> dict:
         raise HTTPException(status_code=400, detail=f"Invalid data format: {str(e)}")
 
 # We need to return HTML to SL for the HUD test
-def generate_html_response(data: SLViewerBrowser, request: Request) -> str:
+def generate_html_response(sl_viewer_browser: Optional[str], request: Request) -> str:
     html_content = f"""
     <html>
         <head>
@@ -122,12 +113,8 @@ def generate_html_response(data: SLViewerBrowser, request: Request) -> str:
         </head>
         <body>
             <h1>HUD Auth Test</h1>
-            <p>Avatar Key: {data.avatar_key}</p>
-            <p>Username: {data.username}</p>
-            <p>Display Name: {data.displayname}</p>
-            <p>Data successfully decrypted and parsed</p>
-            <h2>Full Cookie Information:</h2>
-            <pre>{request.cookies.get('sl_viewer_browser', 'Cookie not found')}</pre>
+            <h2>SL Viewer Browser Cookie:</h2>
+            <pre>{sl_viewer_browser if sl_viewer_browser else 'Cookie not found'}</pre>
             <h2>All Request Headers:</h2>
             <pre>{json.dumps(dict(request.headers), indent=2)}</pre>
             <h2>All Request Cookies:</h2>

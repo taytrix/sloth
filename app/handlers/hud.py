@@ -57,13 +57,16 @@ def set_cookie(response: Response, cookie_name: str, cookie_value: str) -> None:
     response.set_cookie(
         key=cookie_name,
         value=cookie_value,
-        max_age=300,
-        httponly=True,
-        secure=True,
-        samesite="None",
-        domain="hud.auth.dix.lol"
+        max_age=300,  # Expiry time in seconds (5 minutes)
+        httponly=True,  # Prevents JavaScript access
+        secure=True,  # Ensure cookie is only sent over HTTPS
+        samesite="None",  # Necessary for cross-site usage; must be paired with Secure=True
+        domain=".dix.lol",  # Use a leading dot to make the cookie available across subdomains
+        path="/"  # Make the cookie available across all paths on the domain
     )
     logger.debug(f"set_cookie: {cookie_name}={cookie_value}")
+
+
 
 # SL is sending us XORed data so we need to decrypt it
 def decrypt_data(encrypted_data: str) -> str:
